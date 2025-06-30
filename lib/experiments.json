@@ -1,0 +1,11 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "normalization": "False",
+      "denoise": "False",
+      "fmax": 15000,
+      "fmin": 0
+    }
+  ]
+}

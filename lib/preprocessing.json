@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "normalization": "False",
+      "denoise": "False"
+    },
+    {
+      "id": 2,
+      "normalization": "True",
+      "denoise": "False"
+    },
+    {
+      "id": 3,
+      "normalization": "True",
+      "denoise": "True"
+    },
+    {
+      "id": 4,
+      "normalization": "False",
+      "denoise": "True"
+    }
+  ]
+}

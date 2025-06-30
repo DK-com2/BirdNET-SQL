@@ -1,0 +1,142 @@
+version: '3'
+
+
+vars:
+    train_directory: $PROJECT_PATH/data/audio/train
+    extracted_directory: $PROJECT_PATH/data/audio/extracted
+tasks:
+  new_species_pipeline:
+    desc: |
+        準備：
+        1) train.xlsx追加して、ベンチマークデータをdata/audio/testに置く
+        2) extract_audioの冒頭に追加する鳥の名前をセットする（日本語、英語名対応のため）
+        3) data/audio/rawフォルダーに鳥の名前のフォルダーを追加する、生の音声ファイルを配置する
+        ※ベンチマークの音声ファイルはdata/audio/rawにないように注意
+        ※初期データ（Youtube含め）共有されているため、Youtubeのパイプライン不要
+        pathはリンクでなく、ファイル名
+        ※train.xlsxのパスはファイル名と完全一致する必要（半角と全角の空白は要注意）
+        チェックポイント：すべて訓練データのEXTRACTEDが出きたかチェック
+    cmds:
+      - task: extract_audio
+      - task: train_integrated_model
+      - task: analyze_with_integrated_model
+      - task: evaluate_results
+  experiment:
+    cmds:
+      - |
+        while IFS= read -r line; do
+          normalization=$(echo "$line" | jq -r '.normalization')
+          denoise=$(echo "$line" | jq -r '.denoise')
+          fmax=$(echo "$line" | jq -r '.fmax')
+          fmin=$(echo "$line" | jq -r '.fmin')
+          id=$(echo "$line" | jq -r '.id')
+          echo "normalization: $normalization, fmax: $fmax, fmin: $fmin"
+
+          task extract_audio normalization=$normalization fmin=$fmin fmax=$fmax denoise=$denoise
+          task train_integrated_model fmin=$fmin fmax=$fmax name=$id
+          task analyze_with_integrated_model fmin=$fmin fmax=$fmax name=$id
+          task evaluate_results normalization=$normalization fmin=$fmin fmax=$fmax name=$id denoise=$denoise
+
+        done < <(jq -c '.data[]' "${PROJECT_PATH}/lib/experiments.json")
+  analyze:
+    cmds:
+      - |
+        while IFS= read -r line; do
+          normalization=$(echo "$line" | jq -r '.normalization')
+          denoise=$(echo "$line" | jq -r '.denoise')
+          fmax=$(echo "$line" | jq -r '.fmax')
+          fmin=$(echo "$line" | jq -r '.fmin')
+          id=$(echo "$line" | jq -r '.id')
+          echo "normalization: $normalization, fmax: $fmax, fmin: $fmin"
+          python3.11 "${PROJECT_PATH}/normalize_test_audio.py" --normalization=$normalization --fmax=$fmax --fmin=$fmin  --denoise=$denoise
+
+        done  < <(jq -c '.data[]' "${PROJECT_PATH}/lib/preprocessing.json")
+
+        while IFS= read -r line; do
+          normalization=$(echo "$line" | jq -r '.normalization')
+          denoise=$(echo "$line" | jq -r '.denoise')
+          fmax=$(echo "$line" | jq -r '.fmax')
+          fmin=$(echo "$line" | jq -r '.fmin')
+          id=$(echo "$line" | jq -r '.id')
+          echo "normalization: $normalization, fmax: $fmax, fmin: $fmin"
+
+          task analyze_with_integrated_model fmin=$fmin fmax=$fmax name=$id
+          task evaluate_results normalization=$normalization fmin=$fmin fmax=$fmax name=$id denoise=$denoise
+
+        done < <(jq -c '.data[]' "${PROJECT_PATH}/lib/experiments.json")
+  extract_audio:
+    desc: １品種５０音声
+    vars:
+      normalization: '{{.normalization | default "False" }}'
+      fmax: '{{.fmax | default 15000}}'
+      fmin: '{{.fmin | default 0}}'
+      name: '{{.name | default "all_birds"}}'
+      denoise: '{{.denoise | default "False" }}'
+    cmds:
+      - |
+        python3.11 "${PROJECT_PATH}/lib/extract_audio.py" --normalization={{.normalization}} --fmax={{.fmax}} --fmin={{.fmin}} --denoise={{.denoise}}
+  train_integrated_model:
+    vars:
+      fmax: '{{.fmax | default "15000"}}'
+      fmin: '{{.fmin | default "0"}}'
+      name: '{{.name | default "all_birds" }}'
+    cmds:
+      - |
+        for file_path in "{{.extracted_directory}}"/*; do
+          echo $file_path
+          bird_name=${file_path##*/}
+          echo ${bird_name} ------------------------------------------------
+          rm -rf "{{.train_directory}}/$bird_name/"
+          mv "${file_path}/" "{{.train_directory}}/"
+        done
+        python3.11 "${PROJECT_PATH}/lib/birdnet/train.py" \
+          --i "{{.train_directory}}"  \
+          --o "${PROJECT_PATH}/model/{{.name}}/models" \
+          --crop_mode "segments" \
+          --crop_overlap 2 \
+          --epochs 3 \
+          --fmin {{.fmin}} \
+          --fmax {{.fmax}}
+        for file_path in "{{.train_directory}}"/*; do
+          bird_name=${file_path##*/}
+          echo "${bird_name}"
+          if [ "${bird_name}" != "background" ]; then
+            mkdir "{{.extracted_directory}}/${bird_name}/"
+            mv "${file_path}/" "{{.extracted_directory}}/"
+          fi
+        done
+  analyze_with_integrated_model:
+    vars:
+      fmax: '{{.fmax | default 15000}}'
+      fmin: '{{.fmin | default 0}}'
+      name: '{{.name | default "all_birds"}}'
+    cmds:
+      - |
+        python3.11 "${PROJECT_PATH}/lib/birdnet/analyze.py" \
+          --i "${PROJECT_PATH}/data/audio/test" \
+          --o "${PROJECT_PATH}/model/{{.name}}" \
+          --overlap 2 \
+          --rtype 'csv' \
+          --classifier "${PROJECT_PATH}/model/{{.name}}/models.tflite" \
+          --fmax {{.fmax}} \
+          --fmin {{.fmin}} --sensitivity 1.5 \
+          --min_conf 0.1
+  analyze_with_default_model:
+    cmds:
+      - |
+        python3.11 "${PROJECT_PATH}/lib/birdnet/analyze.py" \
+          --i "$"{PROJECT_PATH}"/data/audio/test" \
+          --overlap 2 \
+          --rtype 'csv' \
+          --sensitivity 1.5 \
+          --min_conf 0.01
+  evaluate_results:
+    vars:
+      normalization: '{{.normalization | default "False" }}'
+      fmax: '{{.fmax | default 15000}}'
+      fmin: '{{.fmin | default 0}}'
+      name: '{{.name | default "all_birds"}}'
+      denoise: '{{.denoise | default "False" }}'
+    cmds:
+      - |
+        python3.11 "${PROJECT_PATH}/lib/f1score.py" --name={{.name}}

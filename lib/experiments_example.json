@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "normalization": "False",
+      "denoise": "False",
+      "fmax": 15000,
+      "fmin": 0
+    },
+    {
+      "id": 2,
+      "normalization": "True",
+      "denoise": "False",
+      "fmax": 15000,
+      "fmin": 0
+    },
+    {
+      "id": 3,
+      "normalization": "True",
+      "denoise": "True",
+      "fmax": 15000,
+      "fmin": 0
+    },
+    {
+      "id": 4,
+      "normalization": "False",
+      "denoise": "True",
+      "fmax": 8000,
+      "fmin": 1000
+    }
+  ]
+}

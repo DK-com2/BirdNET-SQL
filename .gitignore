@@ -10,7 +10,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ - commented out to allow lib/birdnet submodule
 lib64/
 parts/
 sdist/
@@ -21,6 +21,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# BirdNET-Analyzer submodule should be tracked
+!lib/
+!lib/birdnet/
 
 # Virtual Environment
 venv/

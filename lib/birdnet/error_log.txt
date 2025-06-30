@@ -1,0 +1,97 @@
+Traceback (most recent call last):
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 449, in analyzeFile
+    saveResultFile(results, result_file_name, fpath)
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 191, in saveResultFile
+    formatted_start_time = f"{int(start//60)}m{int(start%60)}s"
+                                  ~~~~~^^~~
+TypeError: unsupported operand type(s) for //: 'str' and 'int'
+
+Traceback (most recent call last):
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 449, in analyzeFile
+    saveResultFile(results, result_file_name, fpath)
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 191, in saveResultFile
+    formatted_start_time = f"{int(start//60)}m{int(start%60)}s"
+                                  ~~~~~^^~~
+TypeError: unsupported operand type(s) for //: 'str' and 'int'
+
+Traceback (most recent call last):
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 450, in analyzeFile
+    saveResultFile(results, result_file_name, fpath)
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 191, in saveResultFile
+    formatted_start_time = f"{int(start//60)}m{int(start%60)}s"
+                                  ~~~~~^^~~
+TypeError: unsupported operand type(s) for //: 'str' and 'int'
+
+Traceback (most recent call last):
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 451, in analyzeFile
+    saveResultFile(results, result_file_name, fpath)
+  File "/Users/nana/Code/bird_chirp_classification/lib/birdnet/analyze.py", line 192, in saveResultFile
+    formatted_start_time = f"{int(start//60)}m{int(start%60)}s"
+                                  ~~~~~^^~~
+TypeError: unsupported operand type(s) for //: 'str' and 'int'
+
+Traceback (most recent call last):
+  File "S:\python\birdnet-colab\lib\birdnet\analyze.py", line 417, in analyzeFile
+    p = predict(samples)
+  File "S:\python\birdnet-colab\lib\birdnet\analyze.py", line 331, in predict
+    prediction = model.predict(data)
+  File "S:\python\birdnet-colab\lib\birdnet\model.py", line 595, in predict
+    loadModel()
+  File "S:\python\birdnet-colab\lib\birdnet\model.py", line 51, in loadModel
+    INTERPRETER = tflite.Interpreter(
+  File "S:\python\birdnet-colab\venv\lib\site-packages\tensorflow\lite\python\interpreter.py", line 464, in __init__
+    self._interpreter = _interpreter_wrapper.CreateWrapperFromFile(
+ValueError: Could not open 'S:\python\birdnet-colab /lib/birdnet/checkpoints/V2.4/BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite'.
+
+Traceback (most recent call last):
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 417, in analyzeFile
+    p = predict(samples)
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 331, in predict
+    prediction = model.predict(data)
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 595, in predict
+    loadModel()
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 51, in loadModel
+    INTERPRETER = tflite.Interpreter(
+  File "S:\python\BirdNet-win\venv\lib\site-packages\tensorflow\lite\python\interpreter.py", line 464, in __init__
+    self._interpreter = _interpreter_wrapper.CreateWrapperFromFile(
+ValueError: Could not open 'S:\python\BirdNet-win /lib/birdnet/checkpoints/V2.4/BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite'.
+
+Traceback (most recent call last):
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 417, in analyzeFile
+    p = predict(samples)
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 331, in predict
+    prediction = model.predict(data)
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 595, in predict
+    loadModel()
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 51, in loadModel
+    INTERPRETER = tflite.Interpreter(
+  File "S:\python\BirdNet-win\venv\lib\site-packages\tensorflow\lite\python\interpreter.py", line 464, in __init__
+    self._interpreter = _interpreter_wrapper.CreateWrapperFromFile(
+ValueError: Could not open 'S:\python\BirdNet-win /lib/birdnet/checkpoints/V2.4/BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite'.
+
+Traceback (most recent call last):
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 417, in analyzeFile
+    p = predict(samples)
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 331, in predict
+    prediction = model.predict(data)
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 595, in predict
+    loadModel()
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 51, in loadModel
+    INTERPRETER = tflite.Interpreter(
+  File "S:\python\BirdNet-win\venv\lib\site-packages\tensorflow\lite\python\interpreter.py", line 464, in __init__
+    self._interpreter = _interpreter_wrapper.CreateWrapperFromFile(
+ValueError: Could not open 'None/lib/birdnet/checkpoints/V2.4/BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite'.
+
+Traceback (most recent call last):
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 417, in analyzeFile
+    p = predict(samples)
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 331, in predict
+    prediction = model.predict(data)
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 595, in predict
+    loadModel()
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 51, in loadModel
+    INTERPRETER = tflite.Interpreter(
+  File "S:\python\BirdNet-win\venv\lib\site-packages\tensorflow\lite\python\interpreter.py", line 464, in __init__
+    self._interpreter = _interpreter_wrapper.CreateWrapperFromFile(
+ValueError: Could not open 'None/lib/birdnet/checkpoints/V2.4/BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite'.
+

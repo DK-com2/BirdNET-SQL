@@ -124,7 +124,7 @@ class BirdNetAnalyzer:
             sys.executable,
             str(self.project_root / "lib" / "birdnet" / "analyze.py"),
             "--i", str(self.test_folder),
-            "--o", str(self.results_folder),  # 常にdatabase/analysis_resultsに出力
+            "--o", str(self.results_folder),
             "--overlap", "2",
             "--rtype", "csv",
             "--sensitivity", "1.5",
@@ -134,7 +134,7 @@ class BirdNetAnalyzer:
         # カスタムモデルの場合
         if model_path:
             cmd.extend(["--classifier", str(model_path)])
-            cmd.extend(["--min_conf", "0.1"])  # カスタムモデル用の閾値
+            cmd.extend(["--min_conf", "0.1"])  # カスタムモデル用の闾値
             print(f"[INFO] カスタムモデル使用: {model_path.parent.name}")
         else:
             print("[INFO] デフォルトモデル使用")
@@ -149,7 +149,7 @@ class BirdNetAnalyzer:
             
             if result.returncode == 0:
                 print("[OK] 解析が完了しました！")
-                return str(self.results_folder)  # database/analysis_resultsを返す
+                return str(self.results_folder)
             else:
                 print("[ERROR] 解析中にエラーが発生しました:")
                 print(result.stderr)
