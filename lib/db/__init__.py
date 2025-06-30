@@ -1,4 +1,4 @@
 # Database package
-from .database import BirdNetDB
+from .simple_database import BirdNetSimpleDB
 
-__all__ = ['BirdNetDB']
+__all__ = ['BirdNetSimpleDB']

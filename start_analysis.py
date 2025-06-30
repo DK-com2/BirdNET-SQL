@@ -15,7 +15,7 @@ import glob
 # プロジェクトのlibディレクトリをパスに追加
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
-from session_manager import LocationSpeciesDateManager
+from db.session_manager import LocationSpeciesDateManager
 
 
 class BirdNetAnalyzer:
@@ -222,7 +222,7 @@ class BirdNetAnalyzer:
         # データベースにインポート
         cmd = [
             sys.executable,
-            str(self.project_root / "lib" / "import_results_simple.py"),
+            str(self.project_root / "lib" / "db" / "import_results_simple.py"),
             str(source_dir),
             "--session", session_name
         ]
@@ -390,7 +390,7 @@ class BirdNetAnalyzer:
         print("=" * 40)
         
         try:
-            cmd = [sys.executable, str(self.project_root / "lib" / "import_results_simple.py"), "--stats"]
+            cmd = [sys.executable, str(self.project_root / "lib" / "db" / "import_results_simple.py"), "--stats"]
             result = subprocess.run(cmd, cwd=self.project_root, capture_output=True, text=True, encoding='utf-8')
             
             if result.returncode == 0:
@@ -407,7 +407,7 @@ class BirdNetAnalyzer:
         print("=" * 40)
         
         try:
-            cmd = [sys.executable, str(self.project_root / "lib" / "import_results_simple.py"), "--list"]
+            cmd = [sys.executable, str(self.project_root / "lib" / "db" / "import_results_simple.py"), "--list"]
             result = subprocess.run(cmd, cwd=self.project_root, capture_output=True, text=True, encoding='utf-8')
             
             if result.returncode == 0:
@@ -427,7 +427,7 @@ class BirdNetAnalyzer:
         print("🗃️ データベースビューアーを起動しています...")
         
         try:
-            cmd = [sys.executable, str(self.project_root / "lib" / "view_database_simple.py")]
+            cmd = [sys.executable, str(self.project_root / "lib" / "db" / "view_database_simple.py")]
             subprocess.run(cmd, cwd=self.project_root)
         
         except Exception as e:

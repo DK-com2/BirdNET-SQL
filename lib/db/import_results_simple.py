@@ -11,7 +11,7 @@ import sys
 # プロジェクトのlibディレクトリをパスに追加
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from db.simple_database import BirdNetSimpleDB
+from simple_database import BirdNetSimpleDB
 from session_manager import LocationSpeciesDateManager, interactive_session_naming
 
 

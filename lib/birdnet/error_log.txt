@@ -95,3 +95,16 @@ Traceback (most recent call last):
     self._interpreter = _interpreter_wrapper.CreateWrapperFromFile(
 ValueError: Could not open 'None/lib/birdnet/checkpoints/V2.4/BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite'.
 
+Traceback (most recent call last):
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 417, in analyzeFile
+    p = predict(samples)
+  File "S:\python\BirdNet-win\lib\birdnet\analyze.py", line 331, in predict
+    prediction = model.predict(data)
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 595, in predict
+    loadModel()
+  File "S:\python\BirdNet-win\lib\birdnet\model.py", line 51, in loadModel
+    INTERPRETER = tflite.Interpreter(
+  File "S:\python\BirdNet-win\venv\lib\site-packages\tensorflow\lite\python\interpreter.py", line 464, in __init__
+    self._interpreter = _interpreter_wrapper.CreateWrapperFromFile(
+ValueError: Could not open 'None/lib/birdnet/checkpoints/V2.4/BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite'.
+
