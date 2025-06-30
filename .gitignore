@@ -1,0 +1,190 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Audio Files (large files that shouldn't be in git)
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+*.m4a
+*.wma
+
+# Model Files (large ML models)
+*.tflite
+*.h5
+*.pb
+*.ckpt
+*.pth
+*.pkl
+*.joblib
+
+# Data Directories
+data/audio/raw/
+data/audio/extracted/
+data/audio/test/
+data/audio/train/
+data/audio/extracted_spectrogram/
+data/audio/test_spectrogram/
+
+# Model Output
+model/*/
+!model/.gitkeep
+
+# Results and Logs
+*.log
+logs/
+results/
+*.csv
+*.xlsx
+!data/train.xlsx
+
+# Database Files
+database/*.db
+database/*.db-journal
+database/*.db-wal
+database/*.db-shm
+database/backup/*.db
+!database/.gitkeep
+!database/schema.sql
+
+# Temporary Files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Environment Files
+set_env.bat
+.env
+.env.local
+
+# Backup Files
+*_old.*
+*_backup.*
+*.bak
+
+# Cache
+.cache/
+*.cache
+
+# Spectrograms and Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.tar.bz2
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE
+*.swp
+*.swo
+*~
+
+# Documentation builds
+docs/_build/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/

@@ -1,0 +1,2 @@
+# This file ensures that the data directory structure is tracked by Git
+# Audio files will be ignored due to their large size

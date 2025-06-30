@@ -1,0 +1,17 @@
+tensorflow==2.15.0
+keras==2.15.0
+keras-tuner==1.4.7
+librosa==0.9.2
+noisereduce
+soundfile
+numpy
+pandas
+matplotlib
+scikit-learn
+openpyxl
+seaborn
+jupyter
+ipywidgets
+tqdm
+
+# Note: sqlite3 is included in Python standard library, no separate installation needed

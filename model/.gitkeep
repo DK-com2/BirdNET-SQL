@@ -1,0 +1,2 @@
+# This file ensures that the model directory is tracked by Git even when empty
+# Model files (*.tflite) will be ignored, but the directory structure is preserved
