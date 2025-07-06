@@ -1,0 +1,160 @@
+# BirdNet-win .gitignore
+
+# ===========================
+# 🔴 重要：大容量ファイル除外
+# ===========================
+
+# BirdNetライブラリモデルファイル（超大容量）
+lib/birdnet/checkpoints/
+lib/birdnet/**/*.tflite
+lib/birdnet/**/*.h5
+lib/birdnet/**/*.pb
+lib/birdnet/**/*.data-*
+lib/birdnet/**/*.index
+lib/birdnet/**/variables/
+
+# 生音声データ（超大容量）
+data/
+data/**
+data/audio/
+data/audio/**
+data/audio/raw/
+data/audio/raw/**
+data/**/*.mp3
+data/**/*.wav
+data/**/*.flac
+data/**/*.m4a
+data/**/*.aac
+data/**/*.ogg
+
+# カスタムモデルファイル（機密・大容量）
+model/**/*.tflite
+model/**/*.h5
+model/**/*.pb
+model/**/*.onnx
+model/**/*.pt
+model/**/*.pth
+model/**/*.bin
+model/**/*.safetensors
+
+# モデル関連ファイル
+model/**/models_Labels.txt
+model/**/models_Params.csv
+model/**/results.csv
+model/**/config.json
+model/**/training_log.txt
+
+# ===========================
+# データベースファイル除外
+# ===========================
+# 実際のデータベースファイルは除外、スキーマファイルは保持
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+
+# ===========================
+# 音声ファイル除外
+# ===========================
+# 音声ファイルは容量が大きいためすべて除外
+database/audio/inbox/*.mp3
+database/audio/inbox/*.wav
+database/audio/inbox/*.flac
+database/audio/inbox/*.m4a
+database/audio/inbox/*.aac
+database/audio/inbox/*.ogg
+
+database/audio/completed/*.mp3
+database/audio/completed/*.wav
+database/audio/completed/*.flac
+database/audio/completed/*.m4a
+database/audio/completed/*.aac
+database/audio/completed/*.ogg
+
+database/audio/failed/*.mp3
+database/audio/failed/*.wav
+database/audio/failed/*.flac
+database/audio/failed/*.m4a
+database/audio/failed/*.aac
+database/audio/failed/*.ogg
+
+# ===========================
+# 解析結果ファイル除外
+# ===========================
+# CSV結果ファイルは除外（データが含まれるため）
+database/analysis_results/*.csv
+database/analysis_results/*.txt
+database/analysis_results/*.json
+
+# ===========================
+# フォルダ構造保持ファイル
+# ===========================
+# .gitkeepファイルは保持（フォルダ構造維持のため）
+!**/.gitkeep
+!**/README.md
+
+# ===========================
+# Python関連
+# ===========================
+# バイトコンパイルファイル
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 仮想環境
+venv/
+env/
+ENV/
+streamlit_env/
+
+# IDEファイル
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===========================
+# OS関連
+# ===========================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# ===========================
+# ログファイル
+# ===========================
+*.log
+logs/
+log/
+
+# ===========================
+# 一時ファイル
+# ===========================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# ===========================
+# Streamlit関連
+# ===========================
+.streamlit/secrets.toml
+
+# ===========================
+# 設定ファイル（機密情報含む場合）
+# ===========================
+config.ini
+settings.json
+.env
+.env.local
