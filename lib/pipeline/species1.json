@@ -1,0 +1,27 @@
+{
+    "Northern Goshawk": {
+        "japanese_name": "オオタカ",
+        "fmax": 3000,
+        "fmin":1000
+    },
+    "Gray-faced Buzzard":{
+        "japanese_name":"サシバ",
+        "fmax": 5000,
+        "fmin":1500
+    },
+    "Japanese Night Heron":{
+        "japanese_name": "ミゾゴイ",
+        "fmax": 500,
+        "fmin":300
+    },
+    "Ural Owl": {
+        "japanese_name":"フクロウ",
+        "fmax": 600,
+        "fmin":400
+    },
+    "Gray Nightjar": {
+        "japanese_name":"ヨタカ",
+        "fmax": 1600,
+        "fmin":600
+    }
+}
