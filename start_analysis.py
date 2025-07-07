@@ -11,11 +11,19 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 import glob
+import argparse
 
 # プロジェクトのlibディレクトリをパスに追加
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
 from db.session_manager import LocationSpeciesDateManager
+
+# 終了コードの定義
+EXIT_SUCCESS = 0        # 正常終了
+EXIT_GENERAL_ERROR = 1  # 一般的なエラー
+EXIT_NO_FILES = 2       # 音声ファイルなし
+EXIT_MODEL_ERROR = 3    # モデルエラー
+EXIT_ENV_ERROR = 4      # 環境エラー
 
 
 class BirdNetAnalyzer:
@@ -27,22 +35,28 @@ class BirdNetAnalyzer:
         self.model_folder = self.project_root / "model"
         self.database_folder = self.project_root / "database"
         self.results_folder = self.database_folder / "analysis_results"
+        self.quiet_mode = False  # 静謐モードフラグ
         
         # 結果保存フォルダを作成
         self.results_folder.mkdir(parents=True, exist_ok=True)
     
+    def log(self, message):
+        """ログ出力（quiet_mode対応）"""
+        if not self.quiet_mode:
+            print(message)
+    
     def check_environment(self):
         """環境チェック"""
-        print("[INFO] 環境をチェックしています...")
+        self.log("[INFO] 環境をチェックしています...")
         
         # 仮想環境の確認
         if not (self.project_root / "venv").exists():
-            print("[ERROR] 仮想環境が見つかりません。setup.batを実行してください。")
+            self.log("[ERROR] 仮想環境が見つかりません。setup.batを実行してください。")
             return False
         
         # 音声フォルダの確認
         if not self.test_folder.exists():
-            print(f"[INFO] 音声フォルダを作成しています: {self.test_folder}")
+            self.log(f"[INFO] 音声フォルダを作成しています: {self.test_folder}")
             self.test_folder.mkdir(parents=True, exist_ok=True)
         
         return True
@@ -103,8 +117,6 @@ class BirdNetAnalyzer:
         print("  [2] カスタムモデルで解析 + DB保存")
         print("  [3] inboxフォルダを開く")
         print("  [4] 解析結果を表示")
-        print("  [5] データベース統計")
-        print("  [6] データベースビューアー")
         print("  [0] 終了")
         print()
     
@@ -421,59 +433,152 @@ class BirdNetAnalyzer:
         
         input("\nEnterキーを押してメニューに戻る...")
     
-    def show_database_stats(self):
-        """データベース統計を表示"""
-        print()
-        print("[INFO] データベース統計:")
-        print("=" * 40)
+    def run_automated(self, args):
+        """自動モード実行"""
+        self.quiet_mode = args.quiet
+        
+        if not self.check_environment():
+            return EXIT_ENV_ERROR
         
         try:
-            cmd = [sys.executable, str(self.project_root / "lib" / "db" / "import_results_simple.py"), "--stats"]
-            result = subprocess.run(cmd, cwd=self.project_root, capture_output=True, text=True, encoding='utf-8')
+            if args.action == "analyze":
+                return self.execute_analysis_auto(args.model, args.session)
+            elif args.action == "view_results":
+                return self.show_results_auto()
+            elif args.action == "open_inbox":
+                return self.open_inbox_auto()
+            else:
+                self.log(f"[ERROR] 不明なアクション: {args.action}")
+                return EXIT_GENERAL_ERROR
+        except Exception as e:
+            self.log(f"[ERROR] 予期しないエラー: {e}")
+            return EXIT_GENERAL_ERROR
+    
+    def execute_analysis_auto(self, model_name, session_name):
+        """自動解析実行（input()なし版）"""
+        try:
+            # 音声ファイルの確認
+            audio_files = self.get_audio_files()
+            if not audio_files:
+                self.log("[INFO] 解析対象のファイルがありません")
+                return EXIT_NO_FILES
+            
+            self.log(f"[INFO] 解析開始: {len(audio_files)}件のファイル")
+            
+            # モデルパスの決定
+            model_path = None
+            if model_name != "default":
+                model_dir = self.model_folder / model_name
+                if not model_dir.exists():
+                    self.log(f"[ERROR] モデル '{model_name}' が見つかりません")
+                    return EXIT_MODEL_ERROR
+                model_path = model_dir / "models.tflite"
+                if not model_path.exists():
+                    self.log(f"[ERROR] モデルファイル '{model_path}' が見つかりません")
+                    return EXIT_MODEL_ERROR
+            
+            # セッション名の決定
+            if not session_name:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                session_name = f"auto_{model_name}_{timestamp}"
+            
+            # 解析実行
+            output_dir = self.run_analysis(model_path)
+            if not output_dir:
+                self.log("[ERROR] 解析に失敗しました")
+                self.move_files_after_analysis(False, session_name)
+                return EXIT_GENERAL_ERROR
+            
+            # データベース保存
+            if self.save_to_database_auto(output_dir, model_name, session_name):
+                self.log(f"[SUCCESS] 解析完了: セッション '{session_name}'")
+                self.move_files_after_analysis(True, session_name)
+                return EXIT_SUCCESS
+            else:
+                self.log("[ERROR] データベース保存に失敗しました")
+                self.move_files_after_analysis(False, session_name)
+                return EXIT_GENERAL_ERROR
+                
+        except Exception as e:
+            self.log(f"[ERROR] 解析中のエラー: {e}")
+            return EXIT_GENERAL_ERROR
+    
+    def save_to_database_auto(self, source_dir, model_name, session_name):
+        """自動実行用のデータベース保存（input()なし）"""
+        self.log("[INFO] データベースに保存中...")
+        
+        csv_files = list(Path(source_dir).glob("*.BirdNET.results.csv"))
+        if not csv_files:
+            self.log("[ERROR] 保存するCSVファイルがありません")
+            return False
+        
+        self.log(f"[INFO] CSVファイルを確認: {len(csv_files)}件")
+        
+        # データベースにインポート
+        cmd = [
+            sys.executable,
+            str(self.project_root / "lib" / "db" / "import_results_simple.py"),
+            str(source_dir),
+            "--session", session_name,
+            "--model", model_name,
+            "--model-type", "custom" if model_name != "default" else "default"
+        ]
+        
+        try:
+            result = subprocess.run(cmd, cwd=self.project_root, capture_output=True, 
+                                  text=True, encoding='utf-8', errors='replace')
             
             if result.returncode == 0:
-                print(result.stdout)
+                self.log(f"[OK] データベースへの保存が完了しました！")
+                self.log(f"[INFO] セッション: {session_name}")
+                self.log(f"[INFO] CSVファイル: {len(csv_files)}件を database/analysis_results/ に保存済み")
+                return True
             else:
-                print("[ERROR] 統計取得エラー:")
-                print(result.stderr)
-        
+                self.log("[ERROR] データベース保存中にエラーが発生しました:")
+                if not self.quiet_mode:
+                    self.log(result.stderr)
+                return False
+                
         except Exception as e:
-            print(f"[ERROR] 統計表示エラー: {e}")
+            self.log(f"[ERROR] データベース保存エラー: {e}")
+            return False
+    
+    def show_results_auto(self):
+        """解析結果を表示（自動モード）"""
+        self.log("[INFO] 解析結果:")
+        self.log("=" * 40)
         
-        print()
-        print("[INFO] セッション一覧:")
-        print("=" * 40)
+        # database/analysis_resultsの結果
+        result_files = list(self.results_folder.glob("*.csv"))
         
-        try:
-            cmd = [sys.executable, str(self.project_root / "lib" / "db" / "import_results_simple.py"), "--list"]
-            result = subprocess.run(cmd, cwd=self.project_root, capture_output=True, text=True, encoding='utf-8')
+        if result_files:
+            self.log(f"[INFO] 保存済み解析結果: {len(result_files)}件")
+            for file in sorted(result_files, key=lambda x: x.stat().st_mtime, reverse=True)[:5]:
+                mtime = datetime.fromtimestamp(file.stat().st_mtime)
+                self.log(f"   - {file.name} ({mtime.strftime('%Y-%m-%d %H:%M')})")
             
-            if result.returncode == 0:
-                print(result.stdout)
-            else:
-                print("[ERROR] セッション一覧取得エラー:")
-                print(result.stderr)
+            if len(result_files) > 5:
+                self.log(f"   ... 他 {len(result_files) - 5} 件")
+        else:
+            self.log("[INFO] 保存済み結果がありません")
         
-        except Exception as e:
-            print(f"[ERROR] セッション一覧表示エラー: {e}")
-        
-        input("\nEnterキーを押してメニューに戻る...")
+        return EXIT_SUCCESS
     
-    def open_database_viewer(self):
-        """データベースビューアーを開く"""
-        print()
-        print("🗃️ データベースビューアーを起動しています...")
-        
+    def open_inbox_auto(self):
+        """inboxフォルダを開く（自動モード）"""
         try:
-            cmd = [sys.executable, str(self.project_root / "lib" / "db" / "view_database_simple.py")]
-            subprocess.run(cmd, cwd=self.project_root)
-        
+            if os.name == 'nt':  # Windows
+                os.startfile(self.test_folder)
+            else:  # macOS/Linux
+                subprocess.run(['open', self.test_folder])
+            self.log(f"[INFO] inboxフォルダを開きました: {self.test_folder}")
+            return EXIT_SUCCESS
         except Exception as e:
-            print(f"[ERROR] ビューアー起動エラー: {e}")
-            input("\nEnterキーを押してメニューに戻る...")
+            self.log(f"[ERROR] フォルダを開けませんでした: {e}")
+            return EXIT_GENERAL_ERROR
     
-    def run(self):
-        """メインループ"""
+    def run_interactive(self):
+        """対話モード（従来のrun()メソッド）"""
         if not self.check_environment():
             input("Enterキーを押して終了...")
             return
@@ -482,7 +587,7 @@ class BirdNetAnalyzer:
             self.display_menu()
             
             try:
-                choice = input("オプションを選択してください (0-6): ").strip()
+                choice = input("オプションを選択してください (0-4): ").strip()
                 
                 if choice == "1":
                     self.analyze_default()
@@ -492,10 +597,6 @@ class BirdNetAnalyzer:
                     self.open_inbox_folder()
                 elif choice == "4":
                     self.view_results()
-                elif choice == "5":
-                    self.show_database_stats()
-                elif choice == "6":
-                    self.open_database_viewer()
                 elif choice == "0":
                     print("[INFO] さようなら！")
                     break
@@ -513,8 +614,37 @@ class BirdNetAnalyzer:
 
 def main():
     """メイン関数"""
+    
+    # コマンドライン引数の解析
+    parser = argparse.ArgumentParser(description="BirdNet Audio Analysis Tool")
+    parser.add_argument('--auto', action='store_true', 
+                       help='自動モードで実行（メニューを表示せず直接実行）')
+    parser.add_argument('--action', choices=['analyze', 'view_results', 'open_inbox'],
+                       help='実行する処理')
+    parser.add_argument('--model', default='default',
+                       help='使用するモデル名 (default: %(default)s)')
+    parser.add_argument('--session', 
+                       help='セッション名（省略時は自動生成）')
+    parser.add_argument('--quiet', action='store_true',
+                       help='静謐モード（ログ出力を最小限に）')
+    
+    args = parser.parse_args()
+    
     analyzer = BirdNetAnalyzer()
-    analyzer.run()
+    
+    # モードによる分岐
+    if args.auto:
+        # 自動モード: 新機能
+        if not args.action:
+            print("[ERROR] --auto モードでは --action の指定が必要です")
+            parser.print_help()
+            sys.exit(EXIT_GENERAL_ERROR)
+        
+        exit_code = analyzer.run_automated(args)
+        sys.exit(exit_code)
+    else:
+        # 対話モード: 従来の動作
+        analyzer.run_interactive()
 
 
 if __name__ == "__main__":

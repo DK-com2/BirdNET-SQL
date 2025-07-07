@@ -1,179 +1,398 @@
-# BirdNet-Colab Windows ローカル版
+# BirdNet Audio Analysis Tool
 
-鳥の鳴き声を自動識別するAIシステムのWindowsローカル版です。
+鳥の鳴き声を自動識別するAIシステムのWindowsローカル版です。対話型メニューと自動化の両方に対応しています。
 
-## 対象鳥種
-- オオタカ (Northern Goshawk)
-- サシバ (Gray-faced Buzzard) 
-- ミゾゴイ (Japanese Night Heron)
-- フクロウ (Ural Owl)
-- ヨタカ (Gray Nightjar)
+## 🚀 クイックスタート
 
-## 🚀 使用方法（簡単2ステップ）
+### 1. 環境構築（初回のみ）
 
-### 1. 初回セットアップ
-コマンドプロンプト（cmd）で実行：
+**コマンドプロンプト（CMD）の場合:**
 ```cmd
-cd "S:\python\birdnet-colab"
-setup.bat
+# 仮想環境作成・有効化
+python -m venv venv
+venv\Scripts\activate
+
+# パッケージインストール
+pip install -r requirements.txt
 ```
 
-### 2. 音声解析
+**PowerShellの場合:**
+```powershell
+# 仮想環境作成・有効化
+python -m venv venv
+venv\Scripts\Activate.ps1
+
+# パッケージインストール
+pip install -r requirements.txt
+```
+
+> **PowerShellでエラーが出る場合:**
+> ```powershell
+> # 実行ポリシーを一時的に変更
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+> またはコマンドプロンプト（CMD）を使用してください。
+
+**仮想環境を使わない場合:**
 ```cmd
-start_analysis.bat
+# 直接インストール（非推奨）
+pip install -r requirements.txt
 ```
 
-## 📁 基本的な使い方
-
-1. **音声ファイルの準備**
-   - `data\audio\test\` フォルダにMP3またはWAVファイルを配置
-
-2. **解析実行**
-   - `start_analysis.bat` をダブルクリック
-   - メニューから「1」を選択
-
-3. **結果確認**
-   - 同じフォルダに `.csv` ファイルが生成されます
-
-### 結果ファイル例
-```csv
-Start (s),End (s),Scientific name,Common name,Confidence
-0.0,3.0,Accipiter gentilis,Northern Goshawk,0.85
-3.0,6.0,,background,0.12
-6.0,9.0,Butastur indicus,Gray-faced Buzzard,0.73
+### 2. 音声解析の実行
+```cmd
+python start_analysis.py
 ```
 
-## 📊 データベースビューアー
+## 📖 使用方法
 
-解析結果をデータベースで管理・確認できます。
+### 対話モード（メニュー形式）
 
-### 🌟 Streamlit Web Viewer（推奨）
+引数なしで実行すると、従来通りのメニューが表示されます：
 
-**モダンなWebアプリケーション**で解析結果を確認・分析できます。
+```cmd
+python start_analysis.py
+```
 
-#### 起動方法
+```
+==================================================
+[BirdNet] Audio Analysis Tool
+==================================================
+
+[FILES] 音声ファイル:
+   - sample_audio.wav
+   - morning_birds.mp3
+
+[MODELS] 利用可能なモデル:
+   - default (BirdNET標準モデル)
+   - custom_model_1 (カスタムモデル)
+
+[MENU] オプション:
+  [1] デフォルトモデルで解析 + DB保存
+  [2] カスタムモデルで解析 + DB保存
+  [3] inboxフォルダを開く
+  [4] 解析結果を表示
+  [0] 終了
+
+オプションを選択してください (0-4):
+```
+
+### 自動モード（コマンドライン）
+
+自動化やスケジュール実行に適したモードです：
+
+#### 基本的な使い方
+
+```bash
+# デフォルトモデルで解析
+python start_analysis.py --auto --action analyze --model default
+
+# カスタムモデルで解析
+python start_analysis.py --auto --action analyze --model custom_model_1
+
+# 解析結果を表示
+python start_analysis.py --auto --action view_results
+
+# inboxフォルダを開く
+python start_analysis.py --auto --action open_inbox
+```
+
+#### オプション指定
+
+```bash
+# セッション名を指定
+python start_analysis.py --auto --action analyze --model default --session "morning_birds"
+
+# 静謐モード（ログを最小限に）
+python start_analysis.py --auto --action analyze --model default --quiet
+
+# 複合例
+python start_analysis.py --auto --action analyze --model custom_model_1 --session "evening_detection" --quiet
+```
+
+## 📋 コマンドライン引数
+
+| 引数 | 説明 | 必須 | デフォルト |
+|------|------|------|------------|
+| `--auto` | 自動モードを有効化 | ◯（自動モード時） | - |
+| `--action` | 実行する処理<br>`analyze`, `view_results`, `open_inbox` | ◯（自動モード時） | - |
+| `--model` | 使用するモデル名 | - | `default` |
+| `--session` | セッション名 | - | 自動生成 |
+| `--quiet` | 静謐モード | - | `False` |
+
+## 🗂️ ファイル構成
+
+```
+S:\python\BirdNet-win\
+├── start_analysis.py          # メイン解析ツール
+├── setup.bat                  # 初回セットアップ
+├── database/
+│   ├── audio/
+│   │   ├── inbox/             # 解析対象音声ファイル
+│   │   ├── completed/         # 解析完了ファイル
+│   │   └── failed/            # 解析失敗ファイル
+│   ├── analysis_results/      # CSV解析結果
+│   └── result.db             # SQLiteデータベース
+├── model/                     # カスタムモデル
+├── lib/                      # ライブラリ
+│   ├── birdnet/              # BirdNet解析エンジン
+│   └── db/                   # データベース操作
+└── venv/                     # Python仮想環境
+```
+
+## 🎯 音声ファイルの配置
+
+解析したい音声ファイルを以下のフォルダに配置してください：
+
+```
+database/audio/inbox/
+```
+
+対応形式：`.wav`, `.mp3`, `.flac`, `.m4a`
+
+## 📊 セッション名の生成規則
+
+### 自動生成される場合
+
+セッション名を省略すると、以下の形式で自動生成されます：
+
+```
+auto_{model_name}_{timestamp}
+```
+
+**例：**
+- `auto_default_20250707_143022`
+- `auto_custom_model_1_20250707_090015`
+
+### タイムスタンプ形式
+- **年月日**: `YYYYMMDD`
+- **時分秒**: `HHMMSS`
+- **区切り**: アンダースコア `_`
+
+## 🔄 自動化での活用
+
+### Windows タスクスケジューラー
+
+```batch
+# scheduled_analysis.bat
+@echo off
+cd "S:\python\BirdNet-win"
+call venv\Scripts\activate
+
+echo [%date% %time%] 自動解析開始 >> logs\auto.log
+
+python start_analysis.py --auto --action analyze --model default --quiet
+set RESULT=%ERRORLEVEL%
+
+if %RESULT% EQU 0 (
+    echo [%date% %time%] 解析成功 >> logs\auto.log
+) else if %RESULT% EQU 2 (
+    echo [%date% %time%] ファイルなし（正常） >> logs\auto.log
+) else (
+    echo [%date% %time%] 解析失敗（コード:%RESULT%） >> logs\auto.log
+)
+```
+
+### Python スクリプトから
+
+```python
+import subprocess
+from datetime import datetime
+
+def run_birdnet_analysis(model="default"):
+    result = subprocess.run([
+        "python", "start_analysis.py",
+        "--auto", "--action", "analyze",
+        "--model", model,
+        "--session", f"auto_{model}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+    ])
+    
+    if result.returncode == 0:
+        print("✅ 解析成功")
+    elif result.returncode == 2:
+        print("ℹ️ ファイルなし")
+    else:
+        print(f"❌ 解析失敗（コード: {result.returncode}）")
+
+# 実行例
+run_birdnet_analysis("default")
+run_birdnet_analysis("custom_model_1")
+```
+
+### 複数モデルでの一括処理
+
+```python
+import subprocess
+
+models = ["default", "custom_model_1", "custom_model_2"]
+
+for model in models:
+    print(f"モデル {model} で解析中...")
+    
+    result = subprocess.run([
+        "python", "start_analysis.py",
+        "--auto", "--action", "analyze",
+        "--model", model,
+        "--quiet"
+    ])
+    
+    if result.returncode == 0:
+        print(f"✅ {model}: 解析成功")
+    elif result.returncode == 2:
+        print(f"ℹ️ {model}: ファイルなし")
+    else:
+        print(f"❌ {model}: 解析失敗")
+```
+
+## 🔧 終了コード
+
+自動モードでは、以下の終了コードで結果を通知します：
+
+| コード | 意味 | 対応 |
+|--------|------|------|
+| 0 | 正常終了 | 処理が成功しました |
+| 1 | 一般的なエラー | ログを確認してください |
+| 2 | 音声ファイルなし | 正常（ファイル待ち状態） |
+| 3 | モデルエラー | モデル名を確認してください |
+| 4 | 環境エラー | setup.batを実行してください |
+
+## 🛠️ トラブルシューティング
+
+### PowerShellで仮想環境が有効化できない場合
+
+**エラー例:**
+```
+venv\Scripts\Activate.ps1 を読み込めません。ファイル venv\Scripts\Activate.ps1 はデジタル署名されていません。
+```
+
+**解決方法:**
+```powershell
+# 方法1: 実行ポリシーを変更
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# 方法2: コマンドプロンプトを使用
+# Windowsキー + R → "cmd" → Enter
+```
+
+### 会社のPCでSSL証明書エラーが出る場合
+
+**エラー例:**
+```
+SSL: CERTIFICATE_VERIFY_FAILED
+Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None))
+```
+
+**解決方法:**
+```cmd
+# SSL証明書検証をスキップしてインストール
+pip install -r requirements.txt --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org
+
+# 仮想環境での例
+venv\Scripts\activate
+pip install -r requirements.txt --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org
+```
+
+**永続的な設定（一度だけ実行）:**
+```cmd
+mkdir %APPDATA%\pip
+echo [global] > %APPDATA%\pip\pip.conf
+echo trusted-host = pypi.org >> %APPDATA%\pip\pip.conf
+echo                pypi.python.org >> %APPDATA%\pip\pip.conf
+echo                files.pythonhosted.org >> %APPDATA%\pip\pip.conf
+```
+
+### 環境エラー（終了コード: 4）
+```cmd
+# Pythonがインストールされているか確認
+python --version
+
+# 仮想環境を再作成
+rmdir /s venv
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### モデルエラー（終了コード: 3）
+```cmd
+# 利用可能なモデルを確認
+python start_analysis.py --auto --action view_results
+```
+
+### 一般的なエラー（終了コード: 1）
+```cmd
+# 詳細ログで確認（--quietを外す）
+python start_analysis.py --auto --action analyze --model default
+```
+
+### ファイルなし（終了コード: 2）
+```cmd
+# inboxフォルダを開いてファイルを配置
+python start_analysis.py --auto --action open_inbox
+```
+
+## 📈 データベースビューアー
+
+解析結果は自動的にSQLiteデータベースに保存されます。
+
+### Streamlit Web Viewer（推奨）
 ```cmd
 start_streamlit_viewer.bat
 ```
 
-#### 主な機能
-- 🔍 **高度な検索・フィルタリング**: 種名、信頼度、場所での絞り込み
-- 🎵 **音声再生**: 検出されたセグメントの直接再生
-- 📊 **波形・スペクトログラム表示**: 音響分析の可視化
-- 📈 **統計分析**: 信頼度分布、種別統計、時系列分析
-- 📥 **データエクスポート**: CSVファイルでの結果ダウンロード
+高度な検索、音声再生、統計分析などが可能なWebアプリケーションです。
 
-### 🎯 従来のコマンドライン版
+## 🎵 対象鳥種（カスタムモデル）
 
-#### PowerShell
-```powershell
-.\view_database.ps1
+- オオタカ (Northern Goshawk)
+- サシバ (Gray-faced Buzzard)
+- ミゾゴイ (Japanese Night Heron) 
+- フクロウ (Ural Owl)
+- ヨタカ (Gray Nightjar)
+
+> **カスタムモデルの詳細情報:**
+> - 各モデルの対応鳥種: `model/{model_name}/models_Labels.txt`
+> - モデルパラメータ: `model/{model_name}/models_Params.csv`
+> - モデル設定: `model/{model_name}/config.json`
+> 
+> 例: `model/1/models_Labels.txt` で対応鳥種を確認できます。
+> 
+> **利用可能なモデルの確認:**
+> ```cmd
+> # 対話モードでモデル一覧を表示
+> python start_analysis.py
+> 
+> # モデルフォルダを直接確認
+> dir model
+> ```
+
+**注意**: デフォルトモデルは全世界の鳥種（約6,000種）に対応しています。
+
+## 📝 使用例
+
+### 定期的な自動解析
+```cmd
+# 毎日朝6時に実行（タスクスケジューラー設定）
+python start_analysis.py --auto --action analyze --model default --session "morning_routine" --quiet
 ```
 
-#### コマンドプロンプト
+### 手動での詳細解析
 ```cmd
-view_database.bat
+# 対話モードで詳細確認
+python start_analysis.py
+# メニューから「1」または「2」を選択
 ```
 
-#### Python直接実行
+### 結果の確認
 ```cmd
-python launch_viewer.py
-```
-
-### 🔍 利用可能な機能
-
-1. **セッション管理** - インポートした解析結果の一覧表示
-2. **検出結果確認** - 詳細な鳥類検出情報の表示
-3. **統計分析** - 検出種数、信頼度、上位検出種の統計
-4. **CSVエクスポート** - 結果をCSV形式で再出力
-5. **データベース管理** - スキーマやテーブル情報の確認
-
-### 📈 主な表示内容
-
-- **セッション情報**: セッション名、検出数、作成日時
-- **検出結果**: 開始/終了時間、学名/一般名、信頼度
-- **統計情報**: 総検出数、検出種数、平均信頼度、上位検出種
-
-### 💻 コマンドライン例
-
-```cmd
-# 全情報表示
-python lib\view_database.py
-
-# 特定セッションの詳細
-python lib\view_database.py --detections --stats --session-name "ヨタカ解析結果（修正版）"
-
-# CSVエクスポート
-python lib\view_database.py --export "results.csv" --session-name "セッション名"
-
-# セッション一覧のみ
-python lib\view_database.py --sessions
-```
-
-詳細な使い方は `database_viewer_guide.md` を参照してください。
-
-## 🔧 トラブルシューティング
-
-### PowerShellでエラーが出る場合
-コマンドプロンプト（cmd）を使用してください：
-1. Windowsキー + R
-2. `cmd` と入力してEnter
-3. `cd "S:\python\birdnet-colab"` でディレクトリ移動
-4. `setup.bat` を実行
-
-### よくあるエラー
-
-**音声ファイル読み込みエラー**
-- ffmpegをインストール: https://ffmpeg.org/
-
-**TensorFlowエラー**
-```cmd
-set CUDA_VISIBLE_DEVICES=""
-```
-
-**データベースビューアーの文字化け**
-```cmd
-chcp 65001
-```
-
-## 📂 ファイル構成
-
-- `setup.bat` - 初回セットアップ（これだけ実行すればOK）
-- `start_analysis.bat` - 音声解析ツール
-- `start_streamlit_viewer.bat` - **Streamlit Webビューアー（新機能）**
-- `view_database.bat` - データベースビューアー（CMD用）
-- `view_database.ps1` - データベースビューアー（PowerShell用）
-- `launch_viewer.py` - データベースビューアー（Python用）
-- `requirements.txt` - 必要なパッケージ一覧
-- `data\audio\test\` - 音声ファイルを置く場所
-- `database\result.db` - 解析結果データベース
-- `streamlit_viewer\` - **Webアプリケーションフォルダ**
-
-## 🛠️ 高度な使用方法
-
-### コマンドライン実行
-```cmd
-call venv\Scripts\activate.bat
-call set_env.bat
-task analyze_with_default_model
-```
-
-### カスタムモデル作成
-詳細は `訓練用プログラム使い方.md` を参照
-
-### データベース直接操作
-```cmd
-# 結果をデータベースにインポート
-python lib\import_results.py "CSVファイルパス" --session "セッション名"
-
-# データベース内容確認
-python lib\view_database.py --all
+# 最新の解析結果を表示
+python start_analysis.py --auto --action view_results
 ```
 
 ---
 
-**迷ったら:**
-1. `setup.bat` を実行
-2. 音声ファイルを `data\audio\test\` に配置
-3. `start_analysis.bat` を実行
-4. `view_database.bat` で結果確認
+**困ったときは:**
+1. `python --version` でPythonがインストールされているか確認
+2. `database/audio/inbox/` に音声ファイルを配置
+3. `python start_analysis.py` で対話モード実行
+4. `start_streamlit_viewer.bat` で結果を確認
