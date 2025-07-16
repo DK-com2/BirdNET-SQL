@@ -98,8 +98,8 @@ def get_filtered_data(db_path, session_filter=None, species_filter=None, confide
     try:
         # 必要なカラムのみを指定
         required_columns = [
-            'session_name', 'model_name', 'common_name', 
-            'confidence', 'start_time_seconds', 'end_time_seconds', 'filename'
+            'id', 'session_name', 'model_name', 'common_name', 'scientific_name',
+            'confidence', 'start_time_seconds', 'end_time_seconds', 'filename', 'file_path'
         ]
         
         with sqlite3.connect(db_path) as conn:
@@ -226,10 +226,92 @@ def show_data_view():
     if 'data' in st.session_state and not st.session_state.data.empty:
         df = st.session_state.data
         
+        # データテーブル表示と選択機能
+        st.subheader("📊 検索結果")
+        
+        # 表示用データフレームを作成（id、file_path、scientific_nameは表示しない）
+        display_df = df.drop(columns=['id', 'file_path', 'scientific_name'], errors='ignore').copy()
+        
+        # カラム名を日本語に変更
+        display_df = display_df.rename(columns={
+            'session_name': 'セッション名',
+            'model_name': 'モデル', 
+            'common_name': '種名',
+            'confidence': '信頼度',
+            'start_time_seconds': '開始(秒)',
+            'end_time_seconds': '終了(秒)',
+            'filename': 'ファイル名'
+        })
+        
+        # 信頼度をパーセント表示に変換（数値のみ）
+        if '信頼度' in display_df.columns:
+            def format_confidence(x):
+                try:
+                    if pd.isna(x):
+                        return "N/A"
+                    # 既に文字列に変換済みの場合（%が含まれている）
+                    if isinstance(x, str) and '%' in x:
+                        return x
+                    # 数値の場合
+                    if isinstance(x, (int, float)):
+                        return f"{x:.1%}"
+                    return "N/A"
+                except:
+                    return "N/A"
+            
+            display_df['信頼度'] = display_df['信頼度'].apply(format_confidence)
+        
+        # 時間を小数点1位に（数値のみ処理）
+        for time_col in ['開始(秒)', '終了(秒)']:
+            if time_col in display_df.columns:
+                def format_time(x):
+                    try:
+                        if pd.isna(x):
+                            return "N/A"
+                        # 既に文字列に変換済みの場合
+                        if isinstance(x, str) and x != "N/A":
+                            try:
+                                # 数値に戻せるか試す
+                                float(x)
+                                return x  # 数値文字列ならそのまま
+                            except:
+                                return x  # 変換済み文字列ならそのまま
+                        # 数値の場合
+                        if isinstance(x, (int, float)):
+                            return f"{x:.1f}"
+                        return "N/A"
+                    except:
+                        return "N/A"
+                
+                display_df[time_col] = display_df[time_col].apply(format_time)
+        
         # データテーブル表示
-        st.dataframe(df, use_container_width=True, height=600)
+        event = st.dataframe(
+            display_df, 
+            use_container_width=True, 
+            height=400,
+            on_select="rerun",
+            selection_mode="single-row"
+        )
+        
+        # 行が選択された時の処理
+        if event.selection.rows:
+            selected_idx = event.selection.rows[0]
+            selected_record = df.iloc[selected_idx].to_dict()
+            
+            # 選択されたレコード情報を表示
+            st.success(f"✅ 選択されたレコード: {selected_record.get('common_name', 'N/A')} - {selected_record.get('filename', 'N/A')}")
+            
+            # 詳細ページへのボタン
+            col1, col2, col3 = st.columns([1, 1, 2])
+            with col2:
+                if st.button("🎧 音声詳細を表示", type="primary", use_container_width=True):
+                    # 選択されたレコードをセッションステートに保存
+                    st.session_state.selected_record = selected_record
+                    st.switch_page("pages/audio_detail.py")
         
         # CSVエクスポート
+        st.subheader("📊 エクスポート")
         csv = df.to_csv(index=False, encoding='utf-8-sig')
         st.download_button(
             label="📊 CSV ダウンロード",
