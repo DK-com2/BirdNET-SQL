@@ -14,9 +14,18 @@ CREATE TABLE IF NOT EXISTS bird_detections (
     common_name TEXT,
     confidence REAL NOT NULL,
     location TEXT,
-    species TEXT,
-    analysis_date TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- ========== 品質評価関連カラム（最小構成） ==========
+    
+    -- 品質評価ステータス（pending/approved/rejected）
+    quality_status TEXT DEFAULT 'pending' CHECK(quality_status IN ('pending', 'approved', 'rejected')),
+    
+    -- レビュー実施日時
+    reviewed_at TIMESTAMP,
+    
+    -- 簡潔なメモ（必要時のみ）
+    review_notes TEXT
 );
 
 -- インデックス作成
@@ -24,4 +33,20 @@ CREATE INDEX IF NOT EXISTS idx_session_name ON bird_detections(session_name);
 CREATE INDEX IF NOT EXISTS idx_species ON bird_detections(scientific_name, common_name);
 CREATE INDEX IF NOT EXISTS idx_confidence ON bird_detections(confidence);
 CREATE INDEX IF NOT EXISTS idx_location ON bird_detections(location);
-CREATE INDEX IF NOT EXISTS idx_analysis_date ON bird_detections(analysis_date);
+
+-- 品質評価用のインデックス
+CREATE INDEX IF NOT EXISTS idx_quality_status ON bird_detections(quality_status);
+
+-- ビュー: 評価待ちのレコード
+CREATE VIEW IF NOT EXISTS pending_review AS
+SELECT *
+FROM bird_detections
+WHERE quality_status = 'pending'
+ORDER BY created_at ASC;
+
+-- ビュー: 承認済みのレコード
+CREATE VIEW IF NOT EXISTS approved_detections AS
+SELECT *
+FROM bird_detections
+WHERE quality_status = 'approved'
+ORDER BY reviewed_at DESC;

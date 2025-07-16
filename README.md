@@ -340,15 +340,7 @@ python start_analysis.py --auto --action open_inbox
 start_streamlit_viewer.bat
 ```
 
-高度な検索、音声再生、統計分析などが可能なWebアプリケーションです。
-
-## 🎵 対象鳥種（カスタムモデル）
-
-- オオタカ (Northern Goshawk)
-- サシバ (Gray-faced Buzzard)
-- ミゾゴイ (Japanese Night Heron) 
-- フクロウ (Ural Owl)
-- ヨタカ (Gray Nightjar)
+検索、音声再生、統計分析などが可能なWebアプリケーションにする予定です。。
 
 > **カスタムモデルの詳細情報:**
 > - 各モデルの対応鳥種: `model/{model_name}/models_Labels.txt`

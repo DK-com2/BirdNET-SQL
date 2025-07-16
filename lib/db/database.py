@@ -26,15 +26,18 @@ class BirdNetSimpleDB:
         self._initialize_database()
     
     def _initialize_database(self):
-        """データベースの初期化"""
+        """データベースの初期化とマイグレーション"""
         schema_path = self.db_path.parent / "schema_simple.sql"
         
         with sqlite3.connect(self.db_path) as conn:
+            # 既存テーブルのカラムを確認し、品質評価カラムがない場合は追加
+            self._migrate_quality_columns(conn)
+            
             if schema_path.exists():
                 with open(schema_path, 'r', encoding='utf-8') as f:
                     conn.executescript(f.read())
             else:
-                # スキーマファイルがない場合は直接作成
+                # スキーマファイルがない場合は直接作成（品質評価カラム付き）
                 conn.executescript("""
                     CREATE TABLE IF NOT EXISTS bird_detections (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,15 +52,65 @@ class BirdNetSimpleDB:
                         common_name TEXT,
                         confidence REAL NOT NULL,
                         location TEXT,
-                        species TEXT,
-                        analysis_date TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        
+                        -- 品質評価関連カラム（最小構成）
+                        quality_status TEXT DEFAULT 'pending' CHECK(quality_status IN ('pending', 'approved', 'rejected')),
+                        reviewed_at TIMESTAMP,
+                        review_notes TEXT
                     );
                     
                     CREATE INDEX IF NOT EXISTS idx_session_name ON bird_detections(session_name);
                     CREATE INDEX IF NOT EXISTS idx_species ON bird_detections(scientific_name, common_name);
                     CREATE INDEX IF NOT EXISTS idx_confidence ON bird_detections(confidence);
+                    CREATE INDEX IF NOT EXISTS idx_quality_status ON bird_detections(quality_status);
+                    
+                    -- 評価待ちレコード用ビュー
+                    CREATE VIEW IF NOT EXISTS pending_review AS
+                    SELECT * FROM bird_detections WHERE quality_status = 'pending' ORDER BY created_at ASC;
+                    
+                    -- 承認済みレコード用ビュー
+                    CREATE VIEW IF NOT EXISTS approved_detections AS
+                    SELECT * FROM bird_detections WHERE quality_status = 'approved' ORDER BY reviewed_at DESC;
                 """)
+    
+    def _migrate_quality_columns(self, conn):
+        """品質評価カラムのマイグレーション"""
+        cursor = conn.cursor()
+        
+        # テーブルが存在するか確認
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bird_detections'")
+        if not cursor.fetchone():
+            return  # テーブルがない場合は何もしない
+        
+        # 現在のカラム一覧を取得
+        cursor.execute("PRAGMA table_info(bird_detections)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        # 品質評価カラムがない場合は追加
+        migrations = [
+            ('quality_status', "ALTER TABLE bird_detections ADD COLUMN quality_status TEXT DEFAULT 'pending' CHECK(quality_status IN ('pending', 'approved', 'rejected'))"),
+            ('reviewed_at', "ALTER TABLE bird_detections ADD COLUMN reviewed_at TIMESTAMP"),
+            ('review_notes', "ALTER TABLE bird_detections ADD COLUMN review_notes TEXT")
+        ]
+        
+        for column_name, sql in migrations:
+            if column_name not in columns:
+                try:
+                    cursor.execute(sql)
+                    print(f"[INFO] カラムを追加しました: {column_name}")
+                except sqlite3.Error as e:
+                    print(f"[WARNING] カラム追加エラー {column_name}: {e}")
+        
+        # インデックスとビューを追加
+        try:
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_quality_status ON bird_detections(quality_status)")
+            cursor.execute("CREATE VIEW IF NOT EXISTS pending_review AS SELECT * FROM bird_detections WHERE quality_status = 'pending' ORDER BY created_at ASC")
+            cursor.execute("CREATE VIEW IF NOT EXISTS approved_detections AS SELECT * FROM bird_detections WHERE quality_status = 'approved' ORDER BY reviewed_at DESC")
+        except sqlite3.Error as e:
+            print(f"[WARNING] インデックス/ビュー作成エラー: {e}")
+        
+        conn.commit()
     
     def import_csv_results(self, csv_path: str, session_name: str, model_name: str = "BirdNET", model_type: str = "default") -> Dict:
         """CSVファイルから検出結果をインポート"""
@@ -94,7 +147,7 @@ class BirdNetSimpleDB:
                 return {'success': False, 'error': f'Missing columns: {missing_columns}'}
             
             # セッション名から場所、種名、日付を解析
-            location, species, analysis_date = self._parse_session_name(session_name)
+            location, _, _ = self._parse_session_name(session_name)
             
             # 元の音声ファイル名を推定
             # CSVファイル名から音声ファイル名を推定: xxx.BirdNET.results.csv -> xxx
@@ -147,8 +200,6 @@ class BirdNetSimpleDB:
                     'common_name': row[common_name_col] if pd.notna(row[common_name_col]) else None,
                     'confidence': row[confidence_col],
                     'location': location,
-                    'species': species,
-                    'analysis_date': analysis_date,
                     'created_at': datetime.now().isoformat()
                 }
                 records.append(record)
@@ -161,11 +212,11 @@ class BirdNetSimpleDB:
                     INSERT INTO bird_detections (
                         session_name, model_name, model_type, filename, file_path,
                         start_time_seconds, end_time_seconds, scientific_name, common_name, confidence,
-                        location, species, analysis_date, created_at
+                        location, created_at
                     ) VALUES (
                         :session_name, :model_name, :model_type, :filename, :file_path,
                         :start_time_seconds, :end_time_seconds, :scientific_name, :common_name, :confidence,
-                        :location, :species, :analysis_date, :created_at
+                        :location, :created_at
                     )
                 """
                 
@@ -209,15 +260,13 @@ class BirdNetSimpleDB:
                     model_name,
                     model_type,
                     location,
-                    species,
-                    analysis_date,
                     COUNT(*) as detection_count,
                     COUNT(DISTINCT filename) as file_count,
                     MIN(created_at) as first_created,
                     MAX(created_at) as last_created,
                     AVG(confidence) as avg_confidence
                 FROM bird_detections
-                GROUP BY session_name, model_name, model_type, location, species, analysis_date
+                GROUP BY session_name, model_name, model_type, location
                 ORDER BY MAX(created_at) DESC
             """
             
@@ -231,13 +280,11 @@ class BirdNetSimpleDB:
                     'model_name': row[1],
                     'model_type': row[2],
                     'location': row[3],
-                    'species': row[4],
-                    'analysis_date': row[5],
-                    'detection_count': row[6],
-                    'file_count': row[7],
-                    'first_created': row[8],
-                    'last_created': row[9],
-                    'avg_confidence': row[10]
+                    'detection_count': row[4],
+                    'file_count': row[5],
+                    'first_created': row[6],
+                    'last_created': row[7],
+                    'avg_confidence': row[8]
                 })
             
             return sessions
@@ -334,9 +381,7 @@ class BirdNetSimpleDB:
                             confidence as 'Confidence',
                             session_name,
                             filename,
-                            location,
-                            species,
-                            analysis_date
+                            location
                         FROM bird_detections 
                         WHERE session_name = ? 
                         ORDER BY filename, start_time_seconds
@@ -352,9 +397,7 @@ class BirdNetSimpleDB:
                             confidence as 'Confidence',
                             session_name,
                             filename,
-                            location,
-                            species,
-                            analysis_date
+                            location
                         FROM bird_detections 
                         ORDER BY created_at DESC
                     """
@@ -379,6 +422,67 @@ class BirdNetSimpleDB:
         except Exception as e:
             print(f"Delete session error: {e}")
             return False
+    
+    # ========== 品質評価関連メソッド ==========
+    
+    def get_pending_reviews(self, limit: int = 50) -> List[Dict]:
+        """評価待ちのレコードを取得"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT * FROM bird_detections 
+                WHERE quality_status = 'pending' 
+                ORDER BY created_at ASC 
+                LIMIT ?
+            """
+            cursor.execute(query, (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def update_quality_status(self, detection_id: int, status: str, notes: str = None) -> bool:
+        """品質評価ステータスを更新"""
+        if status not in ['pending', 'approved', 'rejected']:
+            return False
+        
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    UPDATE bird_detections 
+                    SET quality_status = ?, reviewed_at = ?, review_notes = ?
+                    WHERE id = ?
+                """, (status, datetime.now().isoformat(), notes, detection_id))
+                
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Quality status update error: {e}")
+            return False
+    
+    def get_quality_statistics(self) -> Dict:
+        """品質評価統計を取得"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    quality_status,
+                    COUNT(*) as count
+                FROM bird_detections
+                GROUP BY quality_status
+            """)
+            
+            status_counts = {row[0]: row[1] for row in cursor.fetchall()}
+            
+            # デフォルト値を設定
+            return {
+                'pending': status_counts.get('pending', 0),
+                'approved': status_counts.get('approved', 0),
+                'rejected': status_counts.get('rejected', 0),
+                'total': sum(status_counts.values())
+            }
 
 def main():
     """テスト用のメイン関数"""
