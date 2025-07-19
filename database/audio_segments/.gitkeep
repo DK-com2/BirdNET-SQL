@@ -1,0 +1,11 @@
+# このファイルはフォルダ構造を保持するためのものです
+# 音声セグメントファイル（.wav, .mp3）は.gitignoreで除外されています
+# セッション別のサブフォルダが自動作成されます
+
+## フォルダ構造例:
+# database/audio_segments/
+# ├── session1/
+# │   ├── detection_001_Species_0.89.wav
+# │   └── detection_002_Species_0.76.wav
+# └── session2/
+#     └── detection_003_Species_0.92.wav

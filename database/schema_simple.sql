@@ -25,7 +25,15 @@ CREATE TABLE IF NOT EXISTS bird_detections (
     reviewed_at TIMESTAMP,
     
     -- 簡潔なメモ（必要時のみ）
-    review_notes TEXT
+    review_notes TEXT,
+    
+    -- ========== 音声セグメント機能（フェーズ1） ==========
+    
+    -- 切り取り音声ファイルの相対パス
+    audio_segment_path TEXT,
+    
+    -- スペクトログラム画像の相対パス
+    spectrogram_path TEXT
 );
 
 -- インデックス作成
@@ -36,6 +44,10 @@ CREATE INDEX IF NOT EXISTS idx_location ON bird_detections(location);
 
 -- 品質評価用のインデックス
 CREATE INDEX IF NOT EXISTS idx_quality_status ON bird_detections(quality_status);
+
+-- 音声セグメント機能用のインデックス
+CREATE INDEX IF NOT EXISTS idx_audio_segment_path ON bird_detections(audio_segment_path);
+CREATE INDEX IF NOT EXISTS idx_spectrogram_path ON bird_detections(spectrogram_path);
 
 -- ビュー: 評価待ちのレコード
 CREATE VIEW IF NOT EXISTS pending_review AS
@@ -50,3 +62,30 @@ SELECT *
 FROM bird_detections
 WHERE quality_status = 'approved'
 ORDER BY reviewed_at DESC;
+
+-- ========== 音声セグメント機能関連ビュー ==========
+
+-- ビュー: セグメント未処理のレコード
+CREATE VIEW IF NOT EXISTS pending_segments AS
+SELECT id, session_name, filename, start_time_seconds, end_time_seconds,
+       confidence, common_name, scientific_name, created_at
+FROM bird_detections
+WHERE audio_segment_path IS NULL
+ORDER BY created_at ASC;
+
+-- ビュー: セグメント処理済みのレコード
+CREATE VIEW IF NOT EXISTS processed_segments AS
+SELECT id, session_name, common_name, confidence,
+       audio_segment_path, spectrogram_path, created_at
+FROM bird_detections
+WHERE audio_segment_path IS NOT NULL
+ORDER BY created_at DESC;
+
+-- ビュー: セグメント処理統計
+CREATE VIEW IF NOT EXISTS segment_stats AS
+SELECT 
+    COUNT(*) as total_detections,
+    COUNT(audio_segment_path) as processed_segments,
+    COUNT(*) - COUNT(audio_segment_path) as pending_segments,
+    ROUND(CAST(COUNT(audio_segment_path) AS FLOAT) / COUNT(*) * 100, 2) as processing_percentage
+FROM bird_detections;

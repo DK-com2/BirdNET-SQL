@@ -140,7 +140,7 @@ class BirdNetAnalyzer:
             "--overlap", "2",
             "--rtype", "csv",
             "--sensitivity", "1.5",
-            "--min_conf", "0.25",        # 0.01 → 0.25 (高速化)
+            "--min_conf", "0.8",        # 0.25 → 0.8 (実用重視)
             "--threads", "12"             # 並列処理で高速化
         ]
         
@@ -149,12 +149,13 @@ class BirdNetAnalyzer:
             cmd.extend(["--classifier", str(model_path)])
             # カスタムモデル用の闾値を更新（既に設定済みの0.25を使用）
             # cmd.extend(["--min_conf", "0.25"])  # 既に上で設定済み
-            print(f"[INFO] カスタムモデル使用: {model_path.parent.name} (信頼度: 0.25)")
+            print(f"[INFO] カスタムモデル使用: {model_path.parent.name} (信頼度: 0.8)")
         else:
-            print("[INFO] デフォルトモデル使用 (信頼度: 0.25)")
+            print("[INFO] デフォルトモデル使用 (信頼度: 0.8)")
         
         print(f"[INFO] 出力先: {self.results_folder}")
         print(f"[INFO] 並列処理: 12スレッド")
+        print(f"[DEBUG] 実行コマンド: {' '.join(cmd)}")
         print()
         
         try:
@@ -163,8 +164,16 @@ class BirdNetAnalyzer:
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'
             
+            print("[DEBUG] BirdNET解析を開始...")
             result = subprocess.run(cmd, cwd=self.project_root, capture_output=True, text=True, 
                                   encoding='utf-8', errors='replace', env=env)
+            
+            print("[DEBUG] BirdNET出力:")
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print("[DEBUG] BirdNETエラー:")
+                print(result.stderr)
             
             if result.returncode == 0:
                 print("[OK] 解析が完了しました！")

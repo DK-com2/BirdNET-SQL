@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-音声詳細ページ
-選択されたレコードの詳細情報を表示
+音声詳細ページ（拡張版）
+選択されたレコードの詳細情報を表示 + 音声切り取り再生機能
 """
 
 import streamlit as st
@@ -9,15 +9,10 @@ import sys
 import os
 from pathlib import Path
 from datetime import datetime
+import numpy as np
 
 def format_seconds_to_time(seconds):
-    """秒数を分秒形式に変換
-    
-    例:
-    - 114.0 -> "1m54s"
-    - 45.0 -> "45s"
-    - 120.0 -> "2m00s"
-    """
+    """秒数を分秒形式に変換"""
     if seconds == 0:
         return "0s"
     
@@ -30,17 +25,8 @@ def format_seconds_to_time(seconds):
     else:
         return f"{remaining_seconds}s"
 
-
 def parse_time_string(time_str):
-    """時間文字列を秒数に変換
-    
-    対応フォーマット:
-    - '1m23s' -> 83.0
-    - '45s' -> 45.0
-    - '2m' -> 120.0
-    - '123.45' -> 123.45
-    - 123.45 -> 123.45
-    """
+    """時間文字列を秒数に変換"""
     if time_str is None:
         return 0.0
     
@@ -92,6 +78,8 @@ def parse_time_string(time_str):
         return total_seconds
     
     return 0.0
+
+# パス設定
 sys.path.append(str(Path(__file__).parent.parent))
 from config import DatabaseConfig, AppConfig, AudioConfig
 
@@ -99,6 +87,13 @@ from config import DatabaseConfig, AppConfig, AudioConfig
 project_root = Path(__file__).parent.parent.parent
 lib_path = project_root / "lib"
 sys.path.append(str(lib_path))
+
+# 新しい音声処理ユーティリティをインポート
+try:
+    from utils.audio_processor import AudioProcessor, AudioPlayerComponent, format_time_display, validate_time_range, handle_audio_errors
+except ImportError as e:
+    st.error(f"音声処理ユーティリティの読み込みに失敗: {e}")
+    st.stop()
 
 try:
     from db.database import BirdNetSimpleDB
@@ -115,6 +110,20 @@ st.set_page_config(
 
 # カスタムCSS
 st.markdown(AppConfig.get_custom_css(), unsafe_allow_html=True)
+
+@st.cache_data
+def load_and_process_audio(audio_path_str: str, sample_rate: int = 22050):
+    """音声ファイルを読み込んで基本処理を実行（キャッシュ付き）"""
+    try:
+        processor = AudioProcessor(sample_rate=sample_rate)
+        audio_data, sr = processor.load_audio(audio_path_str)
+        
+        # 基本統計情報を計算
+        stats = processor.calculate_audio_statistics(audio_data)
+        
+        return audio_data, sr, stats, None
+    except Exception as e:
+        return None, None, None, str(e)
 
 def get_audio_file_path(record):
     """音声ファイルのパスを解決"""
@@ -221,70 +230,210 @@ def show_record_details(record):
         st.write(f"**ファイル名:** {record.get('filename', 'N/A')}")
         st.write(f"**セッション:** {record.get('session_name', 'N/A')}")
         st.write(f"**モデル:** {record.get('model_name', 'N/A')}")
-        
-        # 品質評価ステータス（もしあれば）
-        if 'quality_status' in record:
-            status = record['quality_status']
-            if status == 'pending':
-                st.warning("⏳ 評価待ち")
-            elif status == 'approved':
-                st.success("✅ 承認済み")
-            elif status == 'rejected':
-                st.error("❌ 却下")
 
-def show_audio_player(audio_path, start_time, end_time):
-    """音声プレイヤーを表示"""
+def show_enhanced_audio_player(audio_path, record):
+    """拡張された音声プレイヤーを表示"""
     st.markdown("""
     <div class="card">
-        <h3>🎵 音声再生</h3>
+        <h3>🎵 音声再生（拡張版）</h3>
     </div>
     """, unsafe_allow_html=True)
     
-    if audio_path and audio_path.exists():
-        st.success(f"✅ 音声ファイルが見つかりました: `{audio_path.name}`")
+    if not audio_path or not audio_path.exists():
+        st.error("❌ 音声ファイルが見つかりません")
+        return
+    
+    # 音声データを読み込み
+    with st.spinner("音声データを読み込み中..."):
+        audio_data, sample_rate, stats, error = load_and_process_audio(str(audio_path))
+    
+    if error:
+        st.error(f"音声読み込みエラー: {error}")
+        return
+    
+    if audio_data is None:
+        st.error("音声データの読み込みに失敗しました")
+        return
+    
+    # 基本情報表示
+    st.success(f"✅ 音声ファイル読み込み完了: `{audio_path.name}`")
+    
+    # 音声統計情報
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("総時間", format_time_display(stats['duration']))
+    with col2:
+        st.metric("最大振幅", f"{stats['max_amplitude']:.3f}")
+    with col3:
+        st.metric("RMS振幅", f"{stats['rms_amplitude']:.3f}")
+    with col4:
+        st.metric("サンプルレート", f"{sample_rate} Hz")
+    
+    # 検出時間情報を取得
+    start_time = parse_time_string(record.get('start_time_seconds', 0))
+    end_time = parse_time_string(record.get('end_time_seconds', 0))
+    
+    # タブで機能を分ける
+    tab1, tab2, tab3 = st.tabs(["🎵 音声切り取り再生", "📊 波形表示", "🎧 完全ファイル再生"])
+    
+    with tab1:
+        show_segment_player(audio_data, sample_rate, start_time, end_time, stats['duration'])
+    
+    with tab2:
+        show_waveform_display(audio_data, sample_rate, start_time, end_time)
+    
+    with tab3:
+        show_full_audio_player(audio_path)
+
+@handle_audio_errors
+def show_segment_player(audio_data, sample_rate, detection_start, detection_end, total_duration):
+    """音声セグメント切り取り再生機能"""
+    st.subheader("🎯 指定範囲での音声再生")
+    
+    # コンテキスト設定
+    col1, col2 = st.columns(2)
+    with col1:
+        context_seconds = st.slider(
+            "前後のコンテキスト（秒）",
+            min_value=0.0,
+            max_value=10.0,
+            value=2.0,
+            step=0.5,
+            help="検出範囲の前後に含める時間"
+        )
+    
+    with col2:
+        # カスタム時間範囲設定
+        custom_range = st.checkbox("カスタム時間範囲を設定", help="検出範囲とは異なる時間範囲を指定")
+    
+    if custom_range:
+        # カスタム範囲入力
+        st.write("**カスタム時間範囲**")
+        col_start, col_end = st.columns(2)
         
-        # 全体音声の再生
-        st.subheader("📻 完全なファイルを再生")
+        with col_start:
+            custom_start = st.number_input(
+                "開始時間（秒）",
+                min_value=0.0,
+                max_value=total_duration,
+                value=max(0, detection_start - context_seconds),
+                step=0.1
+            )
+        
+        with col_end:
+            custom_end = st.number_input(
+                "終了時間（秒）",
+                min_value=0.0,
+                max_value=total_duration,
+                value=min(total_duration, detection_end + context_seconds),
+                step=0.1
+            )
+        
+        # 妥当性チェック
+        is_valid, message = validate_time_range(custom_start, custom_end, total_duration)
+        if not is_valid:
+            st.error(message)
+            return
+        
+        segment_start, segment_end = custom_start, custom_end
+    else:
+        # デフォルト: 検出範囲 + コンテキスト
+        segment_start = max(0, detection_start - context_seconds)
+        segment_end = min(total_duration, detection_end + context_seconds)
+    
+    # 切り取り範囲の表示
+    st.info(f"再生範囲: {segment_start:.1f}s ～ {segment_end:.1f}s ({segment_end - segment_start:.1f}秒間)")
+    
+    # 音声セグメント抽出ボタン
+    if st.button("🎵 音声セグメントを生成", type="primary"):
+        try:
+            processor = AudioProcessor(sample_rate=sample_rate)
+            
+            # セグメント抽出
+            with st.spinner("音声セグメントを抽出中..."):
+                segment, actual_start, actual_end = processor.extract_segment(
+                    audio_data, 
+                    segment_start, 
+                    segment_end, 
+                    sample_rate, 
+                    context_seconds=0  # 既にコンテキストは考慮済み
+                )
+            
+            # セグメントをバイト列に変換
+            with st.spinner("音声ファイルを生成中..."):
+                segment_bytes = processor.save_segment_as_bytes(segment, sample_rate, 'wav')
+            
+            # プレイヤーコンポーネントでレンダリング
+            detection_info = {
+                'start': actual_start,
+                'end': actual_end,
+                'duration': actual_end - actual_start,
+                'detection_start': detection_start,
+                'detection_end': detection_end
+            }
+            
+            AudioPlayerComponent.render_segment_player(
+                segment_bytes,
+                title="🎵 切り取り音声セグメント",
+                format="wav",
+                detection_info=detection_info
+            )
+            
+            # 検出範囲のハイライト表示
+            if not custom_range:
+                st.success(f"🎯 検出範囲: {detection_start:.1f}s ～ {detection_end:.1f}s がハイライトされた範囲です")
+            
+        except Exception as e:
+            st.error(f"音声セグメント生成エラー: {e}")
+
+@handle_audio_errors
+def show_waveform_display(audio_data, sample_rate, detection_start, detection_end):
+    """波形表示機能"""
+    st.subheader("📊 音声波形")
+    
+    try:
+        processor = AudioProcessor(sample_rate=sample_rate)
+        
+        # 波形データ生成
+        plot_data = processor.generate_waveform_plot_data(
+            audio_data, 
+            sample_rate,
+            detection_start,
+            detection_end
+        )
+        
+        # 波形をレンダリング
+        AudioPlayerComponent.render_waveform(plot_data)
+        
+        # 波形統計
+        with st.expander("📈 波形統計情報"):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(f"**総サンプル数:** {len(audio_data):,}")
+                st.write(f"**サンプリングレート:** {sample_rate} Hz")
+                st.write(f"**ビット深度:** 32-bit float")
+            
+            with col2:
+                st.write(f"**ダイナミックレンジ:** {np.max(audio_data) - np.min(audio_data):.3f}")
+                st.write(f"**平均値:** {np.mean(audio_data):.6f}")
+                st.write(f"**標準偏差:** {np.std(audio_data):.6f}")
+        
+    except Exception as e:
+        st.error(f"波形表示エラー: {e}")
+
+def show_full_audio_player(audio_path):
+    """完全ファイル再生"""
+    st.subheader("📻 完全なファイルを再生")
+    
+    try:
         with open(audio_path, 'rb') as audio_file:
             audio_bytes = audio_file.read()
             st.audio(audio_bytes, format=f'audio/{audio_path.suffix[1:]}')
         
-        # 検出範囲の案内
-        st.subheader("🎯 検出された時間範囲")
+        st.info("💡 上記は元の音声ファイル全体です。「音声切り取り再生」タブで特定範囲のみを再生できます。")
         
-        # 時間文字列を秒数に変換
-        try:
-            start_float = parse_time_string(start_time)
-            end_float = parse_time_string(end_time)
-            st.info(f"鳥の鳴き声は {format_seconds_to_time(start_float)} ～ {format_seconds_to_time(end_float)} の間で検出されました")
-        except Exception:
-            st.info("鳥の鳴き声の検出時間情報が不明です")
-        # 今後の機能案内
-        st.markdown("""
-        ### 🚧 今後実装予定の機能
-        - 🎵 指定時間範囲での音声切り取り再生
-        - 📊 スペクトログラム表示
-        - 🎛️ 音声の品質評価
-        """)
-        
-    else:
-        st.error("❌ 音声ファイルが見つかりません")
-        st.write("以下の場所を確認してください:")
-        
-        # 検索したパスを表示
-        audio_base = AudioConfig.get_audio_base_path()
-        filename = st.session_state.selected_record.get('filename', '')
-        
-        search_paths = []
-        for subfolder in ['completed', 'failed', 'inbox']:
-            for ext in AudioConfig.get_supported_formats():
-                search_paths.append(f"`{audio_base / subfolder / (filename + ext)}`")
-        
-        for path in search_paths[:5]:  # 最初の5つのみ表示
-            st.code(path)
-        
-        if len(search_paths) > 5:
-            st.write(f"...他 {len(search_paths) - 5} 箇所")
+    except Exception as e:
+        st.error(f"音声ファイル読み込みエラー: {e}")
 
 def main():
     # 選択されたレコードの確認
@@ -310,12 +459,8 @@ def main():
     # 音声ファイルパスを解決
     audio_path = get_audio_file_path(record)
     
-    # 音声プレイヤー表示
-    show_audio_player(
-        audio_path, 
-        record.get('start_time_seconds', 0), 
-        record.get('end_time_seconds', 0)
-    )
+    # 拡張音声プレイヤー表示
+    show_enhanced_audio_player(audio_path, record)
     
     # デバッグ情報（開発時のみ）
     with st.expander("🔧 デバッグ情報", expanded=False):

@@ -80,6 +80,22 @@ database/audio/failed/*.aac
 database/audio/failed/*.ogg
 
 # ===========================
+# 音声セグメントとスペクトログラム除外
+# ===========================
+# 生成されたファイルは除外、フォルダ構造のみ保持
+database/audio_segments/**/*.wav
+database/audio_segments/**/*.mp3
+database/spectrograms/**/*.png
+database/spectrograms/**/*.jpg
+database/spectrograms/**/*.jpeg
+
+# フォルダ構造保持のための.gitkeepファイルは保持
+!database/audio_segments/.gitkeep
+!database/spectrograms/.gitkeep
+!database/audio_segments/**/.gitkeep
+!database/spectrograms/**/.gitkeep
+
+# ===========================
 # 解析結果ファイル除外
 # ===========================
 # CSV結果ファイルは除外（データが含まれるため）

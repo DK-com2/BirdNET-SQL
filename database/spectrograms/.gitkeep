@@ -1,0 +1,11 @@
+# このファイルはフォルダ構造を保持するためのものです
+# スペクトログラムファイル（.png, .jpg）は.gitignoreで除外されています
+# セッション別のサブフォルダが自動作成されます
+
+## フォルダ構造例:
+# database/spectrograms/
+# ├── session1/
+# │   ├── detection_001_Species_0.89.png
+# │   └── detection_002_Species_0.76.png
+# └── session2/
+#     └── detection_003_Species_0.92.png
