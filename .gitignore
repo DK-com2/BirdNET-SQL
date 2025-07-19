@@ -5,7 +5,9 @@
 # ===========================
 
 # BirdNetライブラリモデルファイル（超大容量）
-lib/birdnet/checkpoints/
+# lib/birdnet/checkpoints/ をgitignoreから除外
+# !lib/birdnet/checkpoints/
+# !lib/birdnet/checkpoints/**
 lib/birdnet/**/*.tflite
 lib/birdnet/**/*.h5
 lib/birdnet/**/*.pb
@@ -91,6 +93,10 @@ database/analysis_results/*.json
 # .gitkeepファイルは保持（フォルダ構造維持のため）
 !**/.gitkeep
 !**/README.md
+
+# lib/birdnet/checkpointsフォルダを明示的に含める
+!lib/birdnet/checkpoints/
+!lib/birdnet/checkpoints/**
 
 # ===========================
 # Python関連
