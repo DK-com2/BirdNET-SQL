@@ -131,7 +131,7 @@ class BirdNetAnalyzer:
         print("   (数分かかる場合があります)")
         print()
         
-        # 解析コマンド構築
+        # 解析コマンド構築（高速化設定）
         cmd = [
             sys.executable,
             str(self.project_root / "lib" / "birdnet" / "analyze.py"),
@@ -140,18 +140,21 @@ class BirdNetAnalyzer:
             "--overlap", "2",
             "--rtype", "csv",
             "--sensitivity", "1.5",
-            "--min_conf", "0.01"
+            "--min_conf", "0.25",        # 0.01 → 0.25 (高速化)
+            "--threads", "12"             # 並列処理で高速化
         ]
         
         # カスタムモデルの場合
         if model_path:
             cmd.extend(["--classifier", str(model_path)])
-            cmd.extend(["--min_conf", "0.1"])  # カスタムモデル用の闾値
-            print(f"[INFO] カスタムモデル使用: {model_path.parent.name}")
+            # カスタムモデル用の闾値を更新（既に設定済みの0.25を使用）
+            # cmd.extend(["--min_conf", "0.25"])  # 既に上で設定済み
+            print(f"[INFO] カスタムモデル使用: {model_path.parent.name} (信頼度: 0.25)")
         else:
-            print("[INFO] デフォルトモデル使用")
+            print("[INFO] デフォルトモデル使用 (信頼度: 0.25)")
         
         print(f"[INFO] 出力先: {self.results_folder}")
+        print(f"[INFO] 並列処理: 12スレッド")
         print()
         
         try:
