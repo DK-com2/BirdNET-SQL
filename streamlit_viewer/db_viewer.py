@@ -219,9 +219,29 @@ def generate_files(detection_id, generation_type):
             
         if success:
             st.success(f"✅ {message}")
-            # キャッシュをクリアして表示を更新
+            
+            # キャッシュをクリアしてデータを強制更新
             st.cache_data.clear()
-            time.sleep(1)
+            
+            # 現在の検索条件でデータを再取得
+            if 'last_search_params' in st.session_state:
+                db_path = DatabaseConfig.get_database_path()
+                params = st.session_state.last_search_params
+                updated_df = get_filtered_data(
+                    db_path, 
+                    params.get('session_filter'), 
+                    params.get('species_filter'), 
+                    params.get('confidence_min', 0.0),
+                    params.get('quality_filter')
+                )
+                if not updated_df.empty:
+                    st.session_state.data = updated_df
+            
+            # 選択状態を復元するフラグを設定
+            st.session_state.restore_selection = True
+            
+            # 短時間待機後に再実行
+            time.sleep(0.5)
             st.rerun()
         else:
             st.error(f"❌ {message}")
@@ -280,9 +300,28 @@ def update_quality_status(detection_id, new_status):
                     'pending': '評価待ち'
                 }
                 st.success(f"✅ 品質評価を「{status_labels.get(new_status, new_status)}」に変更しました")
-                # キャッシュをクリアして表示を更新
+                
+                # キャッシュをクリアしてデータを強制更新
                 st.cache_data.clear()
-                time.sleep(0.5)
+                
+                # 現在の検索条件でデータを再取得
+                if 'last_search_params' in st.session_state:
+                    params = st.session_state.last_search_params
+                    updated_df = get_filtered_data(
+                        db_path, 
+                        params.get('session_filter'), 
+                        params.get('species_filter'), 
+                        params.get('confidence_min', 0.0),
+                        params.get('quality_filter')
+                    )
+                    if not updated_df.empty:
+                        st.session_state.data = updated_df
+                
+                # 選択状態を復元するフラグを設定
+                st.session_state.restore_selection = True
+                
+                # 短時間待機後に再実行
+                time.sleep(0.3)
                 st.rerun()
                 return True
             else:
@@ -336,7 +375,7 @@ def show_preview_area(selected_record):
     with col1:
         # スペクトログラム表示
         if file_paths['spectrogram_exists']:
-            st.image(str(file_paths['spectrogram']), use_column_width=True)
+            st.image(str(file_paths['spectrogram']), use_container_width=True)
         else:
             st.markdown("""
             <div style="background: #e9ecef; padding: 2rem; border-radius: 10px; text-align: center;">
@@ -493,10 +532,25 @@ def show_data_view():
     search_button = st.sidebar.button("🔍 検索実行", type="primary", use_container_width=True)
     
     if st.sidebar.button("🗑️ 条件クリア", use_container_width=True):
+        # セッション状態をクリア
+        keys_to_remove = ['data', 'search_executed', 'last_search_params', 'selected_record', 'selected_row_index', 'restore_selection']
+        for key in keys_to_remove:
+            if key in st.session_state:
+                del st.session_state[key]
+        
+        # キャッシュをクリア
         st.cache_data.clear()
         st.rerun()
     
     if search_button or 'search_executed' not in st.session_state:
+        # 検索条件を常に保存
+        st.session_state.last_search_params = {
+            'session_filter': session_filter,
+            'species_filter': species_filter,
+            'confidence_min': confidence_min,
+            'quality_filter': quality_filter
+        }
+        
         with st.spinner("データを取得中..."):
             df = get_filtered_data(db_path, session_filter, species_filter, confidence_min, quality_filter)
             
@@ -670,19 +724,49 @@ def show_data_view():
         
         # データテーブル表示
         st.subheader("📊 検索結果")
+        
+        # 選択状態の復元を確認
+        initial_selection = None
+        if 'restore_selection' in st.session_state and st.session_state.restore_selection:
+            if 'selected_record' in st.session_state and st.session_state.selected_record:
+                # 更新されたデータから同じIDのレコードのインデックスを見つける
+                selected_id = st.session_state.selected_record.get('id')
+                if selected_id:
+                    matching_indices = df.index[df['id'] == selected_id].tolist()
+                    if matching_indices:
+                        initial_selection = {"rows": [matching_indices[0]]}
+            # フラグをクリア
+            st.session_state.restore_selection = False
+        
         event = st.dataframe(
             display_df, 
             use_container_width=True, 
             height=300,
             on_select="rerun",
-            selection_mode="single-row"
+            selection_mode="single-row",
+            key="data_table"
         )
         
-        # 選択された行の情報を取得
+        # 選択された行の情報を取得・保持
         selected_record = None
+        
         if event.selection.rows:
+            # 新しい選択がある場合
             selected_idx = event.selection.rows[0]
             selected_record = df.iloc[selected_idx].to_dict()
+            # 現在選択された行の情報を保存
+            st.session_state.selected_record = selected_record
+            st.session_state.selected_row_index = selected_idx
+        elif 'selected_record' in st.session_state and st.session_state.selected_record:
+            # 選択がないが、以前の選択情報がある場合（アクション後の復元）
+            selected_record = st.session_state.selected_record
+            # 更新されたデータから同じIDのレコードを再取得して最新化
+            if 'id' in selected_record:
+                matching_rows = df[df['id'] == selected_record['id']]
+                if not matching_rows.empty:
+                    # 最新のデータで選択レコードを更新
+                    selected_record = matching_rows.iloc[0].to_dict()
+                    st.session_state.selected_record = selected_record
         
         # プレビューエリア表示
         st.subheader("🎵 プレビュー")
@@ -704,10 +788,13 @@ def main():
     
     with st.sidebar:
         if st.button("🔄 リロード", use_container_width=True):
-            if 'data' in st.session_state:
-                del st.session_state.data
-            if 'search_executed' in st.session_state:
-                del st.session_state.search_executed
+            # 全てのセッション状態をクリア
+            keys_to_remove = ['data', 'search_executed', 'last_search_params', 'selected_record', 'selected_row_index', 'restore_selection']
+            for key in keys_to_remove:
+                if key in st.session_state:
+                    del st.session_state[key]
+            
+            # 全てのキャッシュをクリア
             st.cache_resource.clear()
             st.cache_data.clear()
             st.rerun()
