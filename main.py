@@ -26,12 +26,32 @@ EXIT_MODEL_ERROR = 3    # モデルエラー
 EXIT_ENV_ERROR = 4      # 環境エラー
 
 
+def load_config(config_path):
+    """設定ファイルを読み込む"""
+    config = {}
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        config[key.strip()] = value.strip()
+    except FileNotFoundError:
+        print(f"[WARNING] 設定ファイル {config_path} が見つかりません。デフォルト設定を使用します。")
+    except Exception as e:
+        print(f"[WARNING] 設定ファイル読み込みエラー: {e}")
+    
+    return config
+
 class BirdNetAnalyzer:
     """BirdNet音声解析クラス"""
     
     def __init__(self):
         self.project_root = Path(__file__).parent
         self.test_folder = self.project_root / "database" / "audio" / "inbox"  # 変更: inbox を解析対象に
+        self.config_path = self.project_root / "analysis.conf"
+        self.config = load_config(self.config_path)
         self.model_folder = self.project_root / "model"
         self.database_folder = self.project_root / "database"
         self.results_folder = self.database_folder / "analysis_results"
@@ -145,29 +165,31 @@ class BirdNetAnalyzer:
         print("   (数分かかる場合があります)")
         print()
         
-        # 解析コマンド構築（高速化設定）
+        # 解析コマンド構築（設定ファイルから）
         cmd = [
             sys.executable,
             str(self.project_root / "lib" / "birdnet" / "analyze.py"),
             "--i", str(self.test_folder),
             "--o", str(self.results_folder),
-            "--overlap", "2",
-            "--rtype", "csv",
-            "--sensitivity", "1.5",
-            "--min_conf", "0.8",        # 0.01 → 0.8 (高精度維持)
-            "--threads", "12"             # 並列処理で高速化
         ]
+        
+        # 設定ファイルから値を追加
+        for key, value in self.config.items():
+            cmd.extend([f"--{key}", value])
         
         # カスタムモデルの場合
         if model_path:
             cmd.extend(["--classifier", str(model_path)])
-            # カスタムモデルでも0.8を維持（高精度重視）
-            print(f"[INFO] カスタムモデル使用: {model_path.parent.name} (信頼度: 0.8)")
+        
+        # 設定情報の表示
+        if model_path:
+            print(f"[INFO] カスタムモデル使用: {model_path.parent.name}")
+            print(f"[INFO] カスタムモデル使用 (信頼度: {self.config.get('min_conf', '0.8')})")
         else:
-            print("[INFO] デフォルトモデル使用 (信頼度: 0.8)")
+            print(f"[INFO] デフォルトモデル使用 (信頼度: {self.config.get('min_conf', '0.8')})")
         
         print(f"[INFO] 出力先: {self.results_folder}")
-        print(f"[INFO] 並列処理: 12スレッド")
+        print(f"[INFO] 並列処理: {self.config.get('threads', '12')}スレッド")
         print()
         
         try:

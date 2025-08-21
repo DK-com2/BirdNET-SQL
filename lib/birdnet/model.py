@@ -10,7 +10,7 @@ import utils
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-PROJECT_PATH = os.getenv("PROJECT_PATH")
+PROJECT_PATH = os.getenv("PROJECT_PATH") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 warnings.filterwarnings("ignore")
 
